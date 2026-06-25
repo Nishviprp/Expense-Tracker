@@ -16,7 +16,7 @@ Most expense trackers ask you to create an account and send your spending data t
 - **Monthly summary** — total spent, entry count, and a category-by-category breakdown with percentages
 - **Month navigation** — browse past months
 - **Category filter** — view entries from one category at a time
-- **Backup & restore** — export your data as a JSON file, import it back later or on another device
+- **Excel export** — download a categorized `.xlsx` file: one sheet per category, plus a Summary sheet with totals (using real Excel formulas, so they recalculate if you edit the file)
 - **No sign-up, no server, no tracking**
 
 ## Getting started
@@ -48,7 +48,7 @@ All entries — amounts, categories, dates, descriptions, and receipt photos —
 - Nothing is sent over the network. There's no server in this project at all.
 - Data does **not** sync across devices or browsers automatically.
 - Clearing your browser's site data (or using a different browser/device) will not show your old entries.
-- Use the **Export** button regularly to download a JSON backup, and **Import** to restore it on the same or a different device.
+- Use the **Download Excel** button to export a categorized snapshot of your spending at any time — useful for your own records or further analysis, though it's a one-way export (re-importing into the app isn't supported).
 
 ## Categorization rules
 
