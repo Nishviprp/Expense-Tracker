@@ -6,6 +6,7 @@
 <title>Ledger — Daily Expense Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --paper:#F7F3EC;
@@ -249,9 +250,7 @@
     <div style="display:flex;align-items:center;gap:14px;">
       <div class="date-stamp" id="todayStamp"></div>
       <div class="header-actions">
-        <button class="icon-btn" id="exportBtn" title="Export backup (JSON)">⭳</button>
-        <button class="icon-btn" id="importBtn" title="Import backup (JSON)">⭱</button>
-        <input type="file" id="importFile" accept="application/json" style="display:none;">
+        <button class="icon-btn" id="exportBtn" title="Download as Excel (.xlsx)">⭳</button>
       </div>
     </div>
   </header>
@@ -346,7 +345,7 @@
   </div>
 
   <footer>
-    Everything you enter is stored only in this browser, on this device. Nothing is sent anywhere. Use <strong>Export</strong> regularly to keep a backup file — clearing your browser data will erase your ledger.
+    Everything you enter is stored only in this browser, on this device. Nothing is sent anywhere. Use <strong>Download Excel</strong> regularly to keep a categorized record outside the browser — clearing your browser data will erase your ledger.
   </footer>
 </div>
 
@@ -609,8 +608,6 @@ function bindEvents(){
   $('#photoModal').addEventListener('click', ()=> $('#photoModal').classList.remove('show'));
 
   $('#exportBtn').addEventListener('click', exportData);
-  $('#importBtn').addEventListener('click', ()=> $('#importFile').click());
-  $('#importFile').addEventListener('change', importData);
 }
 
 function handlePhotoSelect(e){
@@ -681,39 +678,67 @@ function showToast(msg){
   t._timer = setTimeout(()=>t.classList.remove('show'), 2200);
 }
 
-/* ====================== EXPORT / IMPORT ====================== */
+/* ====================== EXCEL EXPORT ====================== */
 function exportData(){
-  const blob = new Blob([JSON.stringify(allEntries, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const stamp = new Date().toISOString().slice(0,10);
-  a.href = url; a.download = `ledger-backup-${stamp}.json`;
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
-  showToast('Backup downloaded');
-}
-
-async function importData(e){
-  const file = e.target.files[0];
-  if(!file) return;
-  try{
-    const text = await file.text();
-    const data = JSON.parse(text);
-    if(!Array.isArray(data)) throw new Error('Invalid file');
-    const confirmed = confirm(`Import ${data.length} entries? This will be merged with your current ledger.`);
-    if(!confirmed) return;
-    for(const entry of data){
-      if(!allEntries.find(x=>x.id===entry.id)){
-        await dbAdd(entry);
-        allEntries.push(entry);
-      }
-    }
-    renderAll();
-    showToast('Import complete');
-  } catch(err){
-    alert('Could not read that file. Make sure it\'s a Ledger backup JSON.');
+  if(allEntries.length === 0){
+    alert('No expenses to export yet. Add an entry first.');
+    return;
   }
-  e.target.value = '';
+
+  const wb = XLSX.utils.book_new();
+  const categoriesPresent = Object.keys(CATEGORIES).filter(cat =>
+    allEntries.some(e => e.category === cat)
+  );
+
+  // One sheet per category, sorted by date
+  categoriesPresent.forEach(cat => {
+    const rows = allEntries
+      .filter(e => e.category === cat)
+      .sort((a,b) => a.date.localeCompare(b.date))
+      .map(e => ({
+        Date: e.date,
+        Description: e.description,
+        Amount: e.amount,
+        'Has Receipt Photo': e.photo ? 'Yes' : 'No'
+      }));
+
+    // Total row using a real Excel formula, not a hardcoded number
+    const lastDataRow = rows.length + 1; // +1 for header row
+    rows.push({ Date: '', Description: 'TOTAL', Amount: { f: `SUM(C2:C${lastDataRow})` }, 'Has Receipt Photo': '' });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{wch:12}, {wch:38}, {wch:12}, {wch:16}];
+    const sheetName = cat.replace(/[\\/?*[\]:]/g, '').slice(0,31); // Excel sheet name limits
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  // Summary sheet referencing each category sheet's total via formula
+  const summaryRows = categoriesPresent.map(cat => {
+    const sheetName = cat.replace(/[\\/?*[\]:]/g, '').slice(0,31);
+    const count = allEntries.filter(e => e.category === cat).length;
+    const lastDataRow = count + 1;
+    return {
+      Category: cat,
+      'Total Spent': { f: `'${sheetName}'!C${lastDataRow + 1}` },
+      'Number of Entries': count
+    };
+  });
+  const grandTotalRow = summaryRows.length + 1; // +1 header
+  summaryRows.push({
+    Category: 'GRAND TOTAL',
+    'Total Spent': { f: `SUM(B2:B${grandTotalRow})` },
+    'Number of Entries': { f: `SUM(C2:C${grandTotalRow})` }
+  });
+
+  const summaryWs = XLSX.utils.json_to_sheet(summaryRows);
+  summaryWs['!cols'] = [{wch:22}, {wch:14}, {wch:16}];
+  XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
+  // Move Summary to the front
+  wb.SheetNames.unshift(wb.SheetNames.pop());
+
+  const stamp = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `ledger-expenses-${stamp}.xlsx`);
+  showToast('Excel file downloaded');
 }
 
 init();
