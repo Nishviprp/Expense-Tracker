@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Daily Expense Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F3EC;
+    --paper-raised:#FCFAF5;
+    --ink:#1F2A24;
+    --ink-soft:#5B6B61;
+    --ledger:#2D5F4C;
+    --ledger-deep:#204337;
+    --rust:#C1622D;
+    --sage:#C9D6CC;
+    --sage-deep:#9FB8A8;
+    --gold:#C9A04A;
+    --line:#D8D0C0;
+    --shadow: 0 1px 0 rgba(31,42,36,0.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    background-image:
+      repeating-linear-gradient(transparent, transparent 35px, rgba(45,95,76,0.045) 36px);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:32px 20px 80px;}
+
+  /* ===== Header ===== */
+  header{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:3px double var(--ink);
+    padding-bottom:18px;margin-bottom:28px;
+    flex-wrap:wrap; gap:12px;
+  }
+  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand h1{
+    font-family:'Fraunces',serif;font-weight:700;font-optical-sizing:auto;
+    font-size:34px;margin:0;letter-spacing:-0.01em;
+  }
+  .brand .tag{
+    font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.12em;
+    border-left:2px solid var(--line); padding-left:10px;
+  }
+  .date-stamp{
+    font-family:'Fraunces',serif;font-size:14px;color:var(--ink-soft);
+    text-align:right; font-style:italic;
+  }
+  .header-actions{display:flex;gap:8px;}
+  .icon-btn{
+    background:none;border:1px solid var(--line);border-radius:3px;
+    width:34px;height:34px;cursor:pointer;color:var(--ink-soft);
+    display:flex;align-items:center;justify-content:center;
+    transition:all .15s;
+  }
+  .icon-btn:hover{border-color:var(--ledger);color:var(--ledger);}
+
+  /* ===== Layout grid ===== */
+  .grid{display:grid;grid-template-columns:1fr 320px;gap:28px;align-items:start;}
+  @media (max-width:760px){ .grid{grid-template-columns:1fr;} }
+
+  /* ===== Receipt entry form (signature element) ===== */
+  .receipt{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:2px;
+    padding:24px 22px 22px;
+    position:relative;
+    box-shadow:0 2px 10px rgba(31,42,36,0.07), 0 1px 0 rgba(31,42,36,0.04);
+  }
+  .receipt::before{
+    content:"";
+    position:absolute; top:-6px; left:0; right:0; height:12px;
+    background-image: linear-gradient(135deg, transparent 50%, var(--paper) 50%), linear-gradient(45deg, transparent 50%, var(--paper) 50%);
+    background-size: 14px 14px; background-position: top;
+    background-repeat:repeat-x;
+  }
+  .receipt h2{
+    font-family:'Fraunces',serif;font-size:13px;text-transform:uppercase;
+    letter-spacing:0.14em; color:var(--ink-soft); margin:2px 0 18px;
+    text-align:center; border-bottom:1px dashed var(--line); padding-bottom:12px;
+  }
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;
+    color:var(--ink-soft);margin-bottom:5px;font-weight:600;
+  }
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  input[type=text], input[type=number], input[type=date], select, textarea{
+    width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:3px;
+    background:#fff; font-family:'Inter',sans-serif; font-size:14px; color:var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  input:focus, select:focus, textarea:focus{
+    outline:none; border-color:var(--ledger); box-shadow:0 0 0 3px rgba(45,95,76,0.12);
+  }
+  .amount-row{display:flex; align-items:center; gap:8px;}
+  .currency-mark{font-family:'Fraunces',serif; font-size:20px; color:var(--ink-soft);}
+  .amount-row input{font-family:'Fraunces',serif; font-size:22px; font-weight:600;}
+
+  .category-pred{
+    margin-top:6px; font-size:12px; color:var(--ledger); display:none; align-items:center; gap:6px;
+  }
+  .category-pred.show{display:flex;}
+  .category-pred .dot{width:6px;height:6px;border-radius:50%;background:var(--ledger);}
+
+  .photo-drop{
+    border:1.5px dashed var(--line); border-radius:3px; padding:14px;
+    text-align:center; font-size:12px; color:var(--ink-soft); cursor:pointer;
+    transition:all .15s; position:relative; overflow:hidden;
+  }
+  .photo-drop:hover{border-color:var(--ledger); background:rgba(45,95,76,0.03);}
+  .photo-drop input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+  .photo-preview{
+    margin-top:8px; display:none; align-items:center; gap:8px;
+  }
+  .photo-preview.show{display:flex;}
+  .photo-preview img{width:40px;height:40px;object-fit:cover;border-radius:3px;border:1px solid var(--line);}
+  .photo-preview .name{font-size:12px;color:var(--ink-soft);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .photo-preview button{background:none;border:none;color:var(--rust);cursor:pointer;font-size:16px;line-height:1;}
+
+  .submit-btn{
+    width:100%; background:var(--ledger); color:var(--paper-raised); border:none;
+    padding:12px; border-radius:3px; font-family:'Fraunces',serif; font-weight:600;
+    font-size:15px; letter-spacing:0.02em; cursor:pointer; margin-top:8px;
+    transition:background .15s;
+  }
+  .submit-btn:hover{background:var(--ledger-deep);}
+
+  /* ===== Main column: summary + ledger ===== */
+  .summary-card{
+    background:var(--ledger); color:var(--paper-raised);
+    border-radius:3px; padding:22px 24px; margin-bottom:20px;
+    display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap;
+  }
+  .summary-card .label{font-size:11px; text-transform:uppercase; letter-spacing:0.12em; opacity:0.75; margin-bottom:6px;}
+  .summary-card .big{font-family:'Fraunces',serif; font-size:42px; font-weight:600; line-height:1; font-variant-numeric: tabular-nums;}
+  .summary-card .meta{font-size:12px; opacity:0.8; margin-top:6px;}
+  .month-nav{display:flex; align-items:center; gap:10px;}
+  .month-nav button{
+    background:rgba(255,255,255,0.12); border:none; color:var(--paper-raised);
+    width:28px;height:28px;border-radius:50%; cursor:pointer; font-size:14px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .month-nav button:hover{background:rgba(255,255,255,0.22);}
+  .month-nav .m-label{font-family:'Fraunces',serif; font-size:15px; min-width:120px; text-align:center;}
+
+  /* category tally (signature chart) */
+  .tally{
+    background:var(--paper-raised); border:1px solid var(--line); border-radius:3px;
+    padding:20px 22px; margin-bottom:20px;
+  }
+  .tally h3{
+    font-family:'Fraunces',serif; font-size:15px; margin:0 0 16px;
+    display:flex; justify-content:space-between; align-items:baseline;
+  }
+  .tally h3 span{font-size:11px; color:var(--ink-soft); font-family:'Inter',sans-serif; text-transform:uppercase; letter-spacing:0.08em;}
+  .tally-row{margin-bottom:13px;}
+  .tally-row:last-child{margin-bottom:0;}
+  .tally-row .top{display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px;}
+  .tally-row .top .cat{display:flex;align-items:center;gap:7px;font-weight:600;}
+  .tally-row .top .cat .sw{width:9px;height:9px;border-radius:2px;display:inline-block;}
+  .tally-row .top .amt{font-family:'Fraunces',serif;font-variant-numeric:tabular-nums;font-weight:600;}
+  .tally-row .top .pct{color:var(--ink-soft); font-size:11px; margin-left:6px;}
+  .bar-track{height:7px; background:var(--sage); border-radius:4px; overflow:hidden;}
+  .bar-fill{height:100%; border-radius:4px; transition:width .4s ease;}
+
+  .empty-tally{color:var(--ink-soft); font-size:13px; text-align:center; padding:20px 0; font-style:italic;}
+
+  /* ledger list */
+  .ledger-list{background:var(--paper-raised); border:1px solid var(--line); border-radius:3px; padding:6px 0;}
+  .ledger-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 22px 10px; border-bottom:1px solid var(--line);
+  }
+  .ledger-head h3{font-family:'Fraunces',serif; font-size:15px; margin:0;}
+  .ledger-head .filter{
+    font-size:12px; border:1px solid var(--line); border-radius:3px; padding:5px 8px;
+    background:#fff; color:var(--ink-soft);
+  }
+  .entry{
+    display:flex; align-items:center; gap:14px; padding:13px 22px;
+    border-bottom:1px solid #EAE4D6;
+  }
+  .entry:last-child{border-bottom:none;}
+  .entry .cat-tag{
+    width:34px;height:34px;border-radius:50%; flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;
+  }
+  .entry .info{flex:1; min-width:0;}
+  .entry .desc{font-size:14px; font-weight:600; color:var(--ink);}
+  .entry .sub{font-size:11.5px; color:var(--ink-soft); margin-top:2px;}
+  .entry .amt{
+    font-family:'Fraunces',serif; font-size:16px; font-weight:600; color:var(--rust);
+    font-variant-numeric: tabular-nums; white-space:nowrap;
+  }
+  .entry .thumb{width:30px;height:30px;border-radius:3px;object-fit:cover;border:1px solid var(--line); cursor:pointer;}
+  .entry .del{background:none;border:none;color:var(--line);cursor:pointer;font-size:15px;padding:2px 4px;}
+  .entry .del:hover{color:var(--rust);}
+
+  .empty-state{
+    text-align:center; padding:50px 20px; color:var(--ink-soft);
+  }
+  .empty-state .glyph{font-size:32px;margin-bottom:10px;opacity:0.5;}
+  .empty-state p{font-size:13px; margin:4px 0; font-style:italic;}
+
+  footer{
+    text-align:center; margin-top:36px; font-size:11.5px; color:var(--ink-soft);
+    border-top:1px dashed var(--line); padding-top:16px;
+  }
+
+  /* modal for photo preview */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(31,42,36,0.55);
+    display:none;align-items:center;justify-content:center;z-index:50;padding:20px;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal-overlay img{max-width:90vw;max-height:85vh;border-radius:4px;box-shadow:0 10px 40px rgba(0,0,0,0.4);}
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:var(--paper); padding:11px 20px; border-radius:4px;
+    font-size:13px; opacity:0; transition:all .25s; pointer-events:none; z-index:60;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <h1>Ledger</h1>
+      <span class="tag">Your spending, kept privately</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div class="date-stamp" id="todayStamp"></div>
+      <div class="header-actions">
+        <button class="icon-btn" id="exportBtn" title="Export backup (JSON)">⭳</button>
+        <button class="icon-btn" id="importBtn" title="Import backup (JSON)">⭱</button>
+        <input type="file" id="importFile" accept="application/json" style="display:none;">
+      </div>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <!-- LEFT: summary + tally + ledger -->
+    <div>
+      <div class="summary-card">
+        <div>
+          <div class="label">Total spent</div>
+          <div class="big" id="monthTotal">$0.00</div>
+          <div class="meta" id="entryCount">0 entries this month</div>
+        </div>
+        <div class="month-nav">
+          <button id="prevMonth">‹</button>
+          <div class="m-label" id="currentMonthLabel">—</div>
+          <button id="nextMonth">›</button>
+        </div>
+      </div>
+
+      <div class="tally">
+        <h3>By category <span>this month</span></h3>
+        <div id="tallyBody"><div class="empty-tally">No expenses logged yet — add one to see the breakdown.</div></div>
+      </div>
+
+      <div class="ledger-list">
+        <div class="ledger-head">
+          <h3>Entries</h3>
+          <select class="filter" id="categoryFilter">
+            <option value="">All categories</option>
+          </select>
+        </div>
+        <div id="entriesBody">
+          <div class="empty-state">
+            <div class="glyph">𝓂</div>
+            <p>Nothing recorded yet.</p>
+            <p>Use the slip on the right to add your first expense.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: receipt entry form -->
+    <div>
+      <div class="receipt">
+        <h2>New entry</h2>
+        <form id="entryForm">
+          <div class="field">
+            <label for="desc">What was it for</label>
+            <input type="text" id="desc" placeholder="e.g. Uber to airport, Big Bazaar groceries" required autocomplete="off">
+            <div class="category-pred" id="categoryPred"><span class="dot"></span><span id="categoryPredText"></span></div>
+          </div>
+
+          <div class="field">
+            <label for="amount">Amount</label>
+            <div class="amount-row">
+              <span class="currency-mark">$</span>
+              <input type="number" id="amount" placeholder="0.00" step="0.01" min="0" required>
+            </div>
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label for="category">Category</label>
+              <select id="category"></select>
+            </div>
+            <div class="field">
+              <label for="date">Date</label>
+              <input type="date" id="date" required>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="receiptPhoto">Receipt photo <span style="text-transform:none;font-weight:400;">(optional)</span></label>
+            <div class="photo-drop" id="photoDrop">
+              <span id="photoDropText">Tap to attach a photo of the receipt</span>
+              <input type="file" id="receiptPhoto" accept="image/*">
+            </div>
+            <div class="photo-preview" id="photoPreview">
+              <img id="photoPreviewImg" alt="Receipt preview">
+              <span class="name" id="photoPreviewName"></span>
+              <button type="button" id="removePhoto">✕</button>
+            </div>
+          </div>
+
+          <button type="submit" class="submit-btn">Add to ledger</button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    Everything you enter is stored only in this browser, on this device. Nothing is sent anywhere. Use <strong>Export</strong> regularly to keep a backup file — clearing your browser data will erase your ledger.
+  </footer>
+</div>
+
+<div class="modal-overlay" id="photoModal">
+  <img id="photoModalImg" alt="Receipt">
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ====================== DATA LAYER (IndexedDB) ====================== */
+const DB_NAME = 'ledger_expense_tracker';
+const DB_VERSION = 1;
+const STORE = 'entries';
+let db;
+
+function openDB(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e)=>{
+      const database = e.target.result;
+      if(!database.objectStoreNames.contains(STORE)){
+        const store = database.createObjectStore(STORE, {keyPath:'id'});
+        store.createIndex('date', 'date');
+      }
+    };
+    req.onsuccess = (e)=>resolve(e.target.result);
+    req.onerror = (e)=>reject(e);
+  });
+}
+
+function dbAdd(entry){
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).add(entry);
+    tx.oncomplete = ()=>resolve();
+    tx.onerror = (e)=>reject(e);
+  });
+}
+function dbDelete(id){
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(id);
+    tx.oncomplete = ()=>resolve();
+    tx.onerror = (e)=>reject(e);
+  });
+}
+function dbGetAll(){
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = ()=>resolve(req.result);
+    req.onerror = (e)=>reject(e);
+  });
+}
+function dbClear(){
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).clear();
+    tx.oncomplete = ()=>resolve();
+    tx.onerror = (e)=>reject(e);
+  });
+}
+
+/* ====================== CATEGORIES ====================== */
+const CATEGORIES = {
+  'Food & Dining':   {color:'#C1622D', icon:'🍽'},
+  'Groceries':       {color:'#2D5F4C', icon:'🛒'},
+  'Transportation':  {color:'#3E6E9E', icon:'🚕'},
+  'Bills & Utilities':{color:'#7A5BA6', icon:'🧾'},
+  'Shopping':        {color:'#C9A04A', icon:'🛍'},
+  'Health':          {color:'#B23B5A', icon:'⚕'},
+  'Entertainment':   {color:'#5B8C6B', icon:'🎬'},
+  'Housing & Rent':  {color:'#8A6A4E', icon:'🏠'},
+  'Travel':          {color:'#3E8E8E', icon:'✈'},
+  'Education':       {color:'#4A6FA5', icon:'📚'},
+  'Other':           {color:'#9FB8A8', icon:'•'}
+};
+
+// Keyword -> category rules. Checked against lowercased description.
+const KEYWORD_RULES = [
+  [/uber|ola|lyft|taxi|cab|metro|bus fare|fuel|petrol|diesel|gas station|parking|toll|train ticket|flight(?! attendant)/i, 'Transportation'],
+  [/grocer|supermarket|big bazaar|walmart|costco|whole foods|vegetable|milk|kirana|d-?mart|reliance fresh/i, 'Groceries'],
+  [/restaurant|zomato|swiggy|doordash|ubereats|cafe|coffee|starbucks|pizza|burger|dine|lunch|dinner|breakfast|food court|bar\b|brewery/i, 'Food & Dining'],
+  [/electric|water bill|gas bill|internet|broadband|wifi|phone bill|mobile recharge|utility|utilities|subscription|netflix|spotify|insurance premium/i, 'Bills & Utilities'],
+  [/amazon|flipkart|mall|clothing|shoes|electronics|myntra|shopping|purchase|store\b/i, 'Shopping'],
+  [/doctor|pharmacy|medicine|hospital|clinic|dentist|medical|health/i, 'Health'],
+  [/movie|cinema|concert|netflix party|game|gaming|theatre|theater|bowling|amusement/i, 'Entertainment'],
+  [/rent\b|mortgage|maintenance fee|society fee|landlord/i, 'Housing & Rent'],
+  [/hotel|airbnb|flight|airfare|holiday|vacation|trip to/i, 'Travel'],
+  [/tuition|course|udemy|coursera|book\b|school fee|college/i, 'Education'],
+];
+
+function guessCategory(desc){
+  const d = desc.toLowerCase();
+  for(const [pattern, cat] of KEYWORD_RULES){
+    if(pattern.test(d)) return cat;
+  }
+  return null;
+}
+
+/* ====================== STATE ====================== */
+let allEntries = [];
+let viewMonth = new Date().getMonth();
+let viewYear = new Date().getFullYear();
+let pendingPhoto = null; // {dataUrl, name}
+
+const $ = (sel)=>document.querySelector(sel);
+const fmtMoney = (n)=>'$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+/* ====================== INIT ====================== */
+async function init(){
+  db = await openDB();
+  allEntries = await dbGetAll();
+  populateCategorySelect();
+  populateCategoryFilter();
+  $('#date').valueAsDate = new Date();
+  $('#todayStamp').textContent = new Date().toLocaleDateString(undefined, {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  renderAll();
+  bindEvents();
+}
+
+function populateCategorySelect(){
+  const sel = $('#category');
+  sel.innerHTML = Object.keys(CATEGORIES).map(c=>`<option value="${c}">${CATEGORIES[c].icon} ${c}</option>`).join('');
+}
+function populateCategoryFilter(){
+  const sel = $('#categoryFilter');
+  sel.innerHTML = '<option value="">All categories</option>' +
+    Object.keys(CATEGORIES).map(c=>`<option value="${c}">${c}</option>`).join('');
+}
+
+/* ====================== RENDER ====================== */
+function entriesForViewMonth(){
+  return allEntries.filter(e=>{
+    const d = new Date(e.date + 'T00:00:00');
+    return d.getMonth() === viewMonth && d.getFullYear() === viewYear;
+  });
+}
+
+function renderAll(){
+  renderMonthLabel();
+  const monthEntries = entriesForViewMonth();
+  renderSummary(monthEntries);
+  renderTally(monthEntries);
+  renderEntries(monthEntries);
+}
+
+function renderMonthLabel(){
+  const label = new Date(viewYear, viewMonth, 1).toLocaleDateString(undefined, {month:'long', year:'numeric'});
+  $('#currentMonthLabel').textContent = label;
+}
+
+function renderSummary(monthEntries){
+  const total = monthEntries.reduce((s,e)=>s+e.amount, 0);
+  $('#monthTotal').textContent = fmtMoney(total);
+  $('#entryCount').textContent = `${monthEntries.length} entr${monthEntries.length===1?'y':'ies'} this month`;
+}
+
+function renderTally(monthEntries){
+  const body = $('#tallyBody');
+  if(monthEntries.length === 0){
+    body.innerHTML = '<div class="empty-tally">No expenses logged yet — add one to see the breakdown.</div>';
+    return;
+  }
+  const totals = {};
+  monthEntries.forEach(e=>{ totals[e.category] = (totals[e.category]||0) + e.amount; });
+  const grandTotal = monthEntries.reduce((s,e)=>s+e.amount,0);
+  const sorted = Object.entries(totals).sort((a,b)=>b[1]-a[1]);
+
+  body.innerHTML = sorted.map(([cat, amt])=>{
+    const pct = grandTotal>0 ? (amt/grandTotal*100) : 0;
+    const color = (CATEGORIES[cat]||CATEGORIES['Other']).color;
+    return `
+      <div class="tally-row">
+        <div class="top">
+          <span class="cat"><span class="sw" style="background:${color}"></span>${cat}</span>
+          <span><span class="amt">${fmtMoney(amt)}</span><span class="pct">${pct.toFixed(0)}%</span></span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      </div>`;
+  }).join('');
+}
+
+function renderEntries(monthEntries){
+  const filterVal = $('#categoryFilter').value;
+  const filtered = filterVal ? monthEntries.filter(e=>e.category===filterVal) : monthEntries;
+  const sorted = [...filtered].sort((a,b)=> b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  const body = $('#entriesBody');
+
+  if(sorted.length === 0){
+    body.innerHTML = `<div class="empty-state"><div class="glyph">𝓂</div><p>Nothing here for this filter.</p></div>`;
+    return;
+  }
+
+  body.innerHTML = sorted.map(e=>{
+    const c = CATEGORIES[e.category] || CATEGORIES['Other'];
+    const dateLabel = new Date(e.date+'T00:00:00').toLocaleDateString(undefined,{month:'short', day:'numeric'});
+    return `
+      <div class="entry" data-id="${e.id}">
+        <div class="cat-tag" style="background:${c.color}22;color:${c.color}">${c.icon}</div>
+        <div class="info">
+          <div class="desc">${escapeHtml(e.description)}</div>
+          <div class="sub">${dateLabel} · ${e.category}</div>
+        </div>
+        ${e.photo ? `<img class="thumb" src="${e.photo}" data-photo="${e.photo}" alt="Receipt thumbnail">` : ''}
+        <div class="amt">${fmtMoney(e.amount)}</div>
+        <button class="del" data-del="${e.id}" title="Delete">✕</button>
+      </div>`;
+  }).join('');
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+}
+
+/* ====================== EVENTS ====================== */
+function bindEvents(){
+  $('#desc').addEventListener('input', (e)=>{
+    const guess = guessCategory(e.target.value);
+    const predEl = $('#categoryPred');
+    if(guess){
+      $('#categoryPredText').textContent = `Looks like ${guess} — selected below`;
+      predEl.classList.add('show');
+      $('#category').value = guess;
+    } else {
+      predEl.classList.remove('show');
+    }
+  });
+
+  $('#photoDrop').addEventListener('click', ()=> $('#receiptPhoto').click());
+  $('#receiptPhoto').addEventListener('change', handlePhotoSelect);
+  $('#removePhoto').addEventListener('click', (e)=>{
+    e.preventDefault();
+    pendingPhoto = null;
+    $('#receiptPhoto').value = '';
+    $('#photoPreview').classList.remove('show');
+    $('#photoDropText').textContent = 'Tap to attach a photo of the receipt';
+  });
+
+  $('#entryForm').addEventListener('submit', handleSubmit);
+
+  $('#prevMonth').addEventListener('click', ()=>{
+    viewMonth--; if(viewMonth<0){viewMonth=11; viewYear--;}
+    renderAll();
+  });
+  $('#nextMonth').addEventListener('click', ()=>{
+    viewMonth++; if(viewMonth>11){viewMonth=0; viewYear++;}
+    renderAll();
+  });
+
+  $('#categoryFilter').addEventListener('change', ()=>renderEntries(entriesForViewMonth()));
+
+  $('#entriesBody').addEventListener('click', (e)=>{
+    const delBtn = e.target.closest('[data-del]');
+    if(delBtn){ deleteEntry(delBtn.dataset.del); return; }
+    const thumb = e.target.closest('[data-photo]');
+    if(thumb){ openPhotoModal(thumb.dataset.photo); return; }
+  });
+
+  $('#photoModal').addEventListener('click', ()=> $('#photoModal').classList.remove('show'));
+
+  $('#exportBtn').addEventListener('click', exportData);
+  $('#importBtn').addEventListener('click', ()=> $('#importFile').click());
+  $('#importFile').addEventListener('change', importData);
+}
+
+function handlePhotoSelect(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    pendingPhoto = {dataUrl: ev.target.result, name: file.name};
+    $('#photoPreviewImg').src = pendingPhoto.dataUrl;
+    $('#photoPreviewName').textContent = file.name;
+    $('#photoPreview').classList.add('show');
+    $('#photoDropText').textContent = 'Replace photo';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function handleSubmit(e){
+  e.preventDefault();
+  const description = $('#desc').value.trim();
+  const amount = parseFloat($('#amount').value);
+  const category = $('#category').value;
+  const date = $('#date').value;
+  if(!description || isNaN(amount) || amount <= 0 || !date) return;
+
+  const entry = {
+    id: crypto.randomUUID(),
+    description, amount, category, date,
+    photo: pendingPhoto ? pendingPhoto.dataUrl : null,
+    createdAt: Date.now()
+  };
+
+  await dbAdd(entry);
+  allEntries.push(entry);
+
+  // reset form
+  $('#entryForm').reset();
+  $('#date').valueAsDate = new Date();
+  $('#categoryPred').classList.remove('show');
+  pendingPhoto = null;
+  $('#photoPreview').classList.remove('show');
+  $('#photoDropText').textContent = 'Tap to attach a photo of the receipt';
+
+  // jump view to the month of the new entry
+  const d = new Date(date+'T00:00:00');
+  viewMonth = d.getMonth(); viewYear = d.getFullYear();
+
+  renderAll();
+  showToast('Added to ledger');
+}
+
+async function deleteEntry(id){
+  await dbDelete(id);
+  allEntries = allEntries.filter(e=>e.id !== id);
+  renderAll();
+  showToast('Entry removed');
+}
+
+function openPhotoModal(src){
+  $('#photoModalImg').src = src;
+  $('#photoModal').classList.add('show');
+}
+
+function showToast(msg){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+/* ====================== EXPORT / IMPORT ====================== */
+function exportData(){
+  const blob = new Blob([JSON.stringify(allEntries, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url; a.download = `ledger-backup-${stamp}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  showToast('Backup downloaded');
+}
+
+async function importData(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if(!Array.isArray(data)) throw new Error('Invalid file');
+    const confirmed = confirm(`Import ${data.length} entries? This will be merged with your current ledger.`);
+    if(!confirmed) return;
+    for(const entry of data){
+      if(!allEntries.find(x=>x.id===entry.id)){
+        await dbAdd(entry);
+        allEntries.push(entry);
+      }
+    }
+    renderAll();
+    showToast('Import complete');
+  } catch(err){
+    alert('Could not read that file. Make sure it\'s a Ledger backup JSON.');
+  }
+  e.target.value = '';
+}
+
+init();
+</script>
+</body>
+</html>
