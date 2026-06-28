@@ -453,7 +453,7 @@
 const SUPABASE_URL = 'https://ljibfkxyziqpitlilrdb.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_z3ImzJVK9fEt4sMnGA1p1w_8FipOAZJ';
 
-const supabase = (SUPABASE_URL.startsWith('http'))
+const sb = (SUPABASE_URL.startsWith('http'))
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
@@ -548,10 +548,10 @@ function setSyncStatus(state, label){
 }
 
 async function pushEntryToCloud(entry){
-  if(!supabase || !currentUser) return;
+  if(!sb || !currentUser) return;
   try{
     setSyncStatus('syncing', 'Syncing…');
-    const { error } = await supabase.from('expenses').upsert({
+    const { error } = await sb.from('expenses').upsert({
       id: entry.id,
       user_id: currentUser.id,
       description: entry.description,
@@ -570,10 +570,10 @@ async function pushEntryToCloud(entry){
 }
 
 async function deleteEntryFromCloud(id){
-  if(!supabase || !currentUser) return;
+  if(!sb || !currentUser) return;
   try{
     setSyncStatus('syncing', 'Syncing…');
-    const { error } = await supabase.from('expenses').delete().eq('id', id).eq('user_id', currentUser.id);
+    const { error } = await sb.from('expenses').delete().eq('id', id).eq('user_id', currentUser.id);
     if(error) throw error;
     setSyncStatus('ok', 'Synced');
   } catch(err){
@@ -583,8 +583,8 @@ async function deleteEntryFromCloud(id){
 }
 
 async function pullEntriesFromCloud(){
-  if(!supabase || !currentUser) return [];
-  const { data, error } = await supabase.from('expenses').select('*').eq('user_id', currentUser.id);
+  if(!sb || !currentUser) return [];
+  const { data, error } = await sb.from('expenses').select('*').eq('user_id', currentUser.id);
   if(error){ console.error('Cloud pull failed:', error); setSyncStatus('error','Could not load cloud data'); return []; }
   return data || [];
 }
@@ -669,19 +669,19 @@ const fmtMoney = (n)=>'$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
 /* ====================== AUTH FLOW ====================== */
 async function init(){
-  if(!supabase){
+  if(!sb){
     document.querySelector('.auth-card').innerHTML =
       '<h1 class="auth-title">Setup needed</h1><p class="auth-sub">This app is not yet connected to a Supabase project. Add your SUPABASE_URL and SUPABASE_ANON_KEY in the code to enable sign-in.</p>';
     return;
   }
 
   // Restore existing session if present
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await sb.auth.getSession();
   if(session){
     await onSignedIn(session.user);
   }
 
-  supabase.auth.onAuthStateChange(async (event, session)=>{
+  sb.auth.onAuthStateChange(async (event, session)=>{
     if(event === 'SIGNED_IN' && session){
       await onSignedIn(session.user);
     } else if(event === 'SIGNED_OUT'){
@@ -691,7 +691,7 @@ async function init(){
 
   $('#googleSignInBtn').addEventListener('click', async ()=>{
     $('#googleSignInBtn').disabled = true;
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+    const { error } = await sb.auth.signInWithOAuth({ provider: 'google' });
     if(error){
       alert('Sign-in failed: ' + error.message);
       $('#googleSignInBtn').disabled = false;
@@ -734,7 +734,7 @@ function onSignedOut(){
 }
 
 async function handleSignOut(){
-  await supabase.auth.signOut();
+  await sb.auth.signOut();
 }
 
 function showStorageWarning(){
