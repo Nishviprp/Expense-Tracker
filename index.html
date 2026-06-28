@@ -691,7 +691,10 @@ async function init(){
 
   $('#googleSignInBtn').addEventListener('click', async ()=>{
     $('#googleSignInBtn').disabled = true;
-    const { error } = await sb.auth.signInWithOAuth({ provider: 'google' });
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
     if(error){
       alert('Sign-in failed: ' + error.message);
       $('#googleSignInBtn').disabled = false;
